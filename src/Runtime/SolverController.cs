@@ -665,12 +665,16 @@ internal static class SolverController
         choices = null;
         if (!ReferenceEquals(_combat.State, state)
             || _combat.ContinuationSource is not { } source
-            || _combat.LastSolverDeployedTurn != turn - 1
-            || !source.Continuations.Any(item => item.StartTurnNumber == turn))
+            || _combat.LastSolverDeployedTurn != turn - 1)
         {
             return false;
         }
 
+        // Turn-start choices belong to the EndTurn action that was actually
+        // deployed. A search may stop at that end-turn boundary without
+        // publishing a continuation for the following Play phase. Replay the
+        // recorded native choice first; ResumeAfterTurnSetupAsync will capture
+        // and search the resulting live Play state instead of stranding the UI.
         PlanAction? previousEndTurn = source.BestNode.Actions.FirstOrDefault(action =>
             action.Turn == turn - 1
             && (action.Kind == PlanActionKind.EndTurn || action.EndsPlayerTurn));
