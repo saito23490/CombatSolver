@@ -2390,10 +2390,10 @@ internal static class SolverController
                 // next-turn choices belong to this native UI session.
                 if (action.EndsPlayerTurn && action.TurnStartChoices is { Count: > 0 })
                 {
-                    // Knowledge Demon curses are consumed directly by the enemy-turn resolver,
-                    // not by the native choice cursor used for card deployment.
-                    actionChoices.AddRange(action.TurnStartChoices
-                        .Where(choice => choice.Effect != PlanChoiceEffect.ApplyKnowledgeCurse));
+                    // The live native session must also drive enemy-turn pages
+                    // such as Knowledge Demon's curse choice. Only simulated
+                    // action replay excludes those choices from its card cursor.
+                    actionChoices.AddRange(action.TurnStartChoices);
                 }
                 if (actionChoices.Count > 0)
                 {
@@ -2577,7 +2577,6 @@ internal static class SolverController
                 token.ThrowIfCancellationRequested();
                 PlanCardChoice[] endTurnChoices = plannedEndTurn.TurnStartChoices?
                     .Where(choice => choice.Timing is PlanChoiceTiming.PlayerTurnEnd or PlanChoiceTiming.EnemyTurn)
-                    .Where(choice => choice.Effect != PlanChoiceEffect.ApplyKnowledgeCurse)
                     .ToArray() ?? [];
                 if (endTurnChoices.Length > 0)
                 {
