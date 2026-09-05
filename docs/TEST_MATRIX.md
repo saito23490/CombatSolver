@@ -23,7 +23,7 @@
 | `ISSUE-20260903-DEPLOYMENT-TURN-DRIFT` | 已修复，待专用时序夹具 | 部署动作检测到玩家回合已结束时现在清理旧路线并按 `DeploymentDrift` 重捕获，不再记为自动执行失败；其他部署异常仍显式失败。 | 2026-09-04 |
 | `ISSUE-20260903-PENDING-CHOICE-HOOK-BOUNDARY` | 已修复，待双监听器夹具 | 洗牌 Hook 在已有待处理选择时停止继续调用监听器，分支消费后再继续；避免同一模拟事件创建冲突选择。 | 2026-09-04 |
 | `ISSUE-20260903-NATIVE-CHOICE-SURFACE-TIMEOUT` | 已修复，待页面消失夹具 | 原生选牌页面或确认按钮等待超时现在按页面漂移关闭并请求 `DeploymentDrift` 重捕获；非原生等待超时仍走原有失败路径。 | 2026-09-04 |
-| `FACTORY-TURN-SETUP-HORIZON-BOUNDARY` | 已修复，待同存档实机复验 | 四进程采集在第 5 回合进入烤面包手套选牌页后停住；上一回合已部署动作含计划选择，但搜索没有下一 Play continuation。现在先重放该计划选择，再从选择完成后的真实状态搜索。 | 2026-09-05 |
+| `FACTORY-TURN-SETUP-HORIZON-BOUNDARY` | 通过（四进程实机） | worker 15527 在上一搜索以 `TimeLimit` 结束后，第 6、7 回合均由 `turn_setup` 原生会话重放烤面包手套计划选择；选择完成后以 `AutoTurnStart / initial_search` 从真实 Play 状态继续搜索，战斗正常生成 result，阶段拒绝为 0。runId `7d2837be120a4cb38014e6257931dd3b`。 | 2026-09-05 |
 | `FACTORY-KNOWLEDGE-DEMON-NATIVE-CHOICE` | 通过（四进程实机） | worker 15527 的知识恶魔 Boss 战在第 1 回合按路线选择 `MIND_ROT`，第 5 回合按路线选择 `SLOTH`；两次均由 `deployment_end_turn` 原生会话消费，战斗继续并正常生成 result，未再出现敌方阶段全自动拒绝。runId `7d2837be120a4cb38014e6257931dd3b`。 | 2026-09-05 |
 
 性能指标口径：`selected_*` 只描述最终选中的单个 solver；请求级 `total_expanded_nodes / total_transitions / total_choice_branches`、`total_solver_ms`、分配与 GC 累计对正常、失败和取消的每个 solver 工作区间精确记录一次，包括取消前已发生的部分工作。Smart 有限药水层之间由 coordinator 主动执行的内存整理也计入时间、分配与 GC，但不增加 solver 数；建立开局、层间比较等其他编排工作仍不在这些总值中。因此端到端耗时以请求/阶段外层墙钟为准，峰值内存以进程 `VmHWM` 为准。Smart 多层的取消时点可能令请求总工作量小幅波动，语义验收优先比较胜负、战损、回合和动作路线。峰值工作集是瞬时进程峰值，不能跨阶段相加；`16 GB` NoGC 是运行时请求预算，不等于实际占用或硬上限；NoGC 活跃时 `GC.GetTotalMemory(false)` 不是严格 live-set 测量。
