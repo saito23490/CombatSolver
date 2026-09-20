@@ -39,6 +39,9 @@ internal sealed class UnattendedTestRequest
     public int? InitialMaxPotionCount { get; init; }
     public bool DumpInitialState { get; init; }
     public bool InjectRelicsAfterDeck { get; init; }
+    // STS2AI: deterministic per-request node budget. Applied before the
+    // encounter is entered so the initial automatic search runs under it.
+    public int? SearchMaxExpandedNodesForTest { get; init; }
     public UnattendedPreCombatMapStep[] PreCombatInterveningMapPoints { get; init; } = [];
     public string[] ExpectedLoadedMods { get; init; } = [];
     public string? ReplayStatePath { get; init; }

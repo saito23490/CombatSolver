@@ -231,6 +231,7 @@ internal sealed partial class UnattendedTestRunner
             }
             PrepareGeneratedStartingRelics(runPlayer);
             await Sts2AiApplyRunPlayerDefaults(runPlayer, request);
+            Sts2AiApplySearchPolicy(request);
             // Native acquisition (path A) reads and mutates the deck, so the
             // STS2AI arena can defer relic injection until the deck is built.
             if (!request.InjectRelicsAfterDeck)

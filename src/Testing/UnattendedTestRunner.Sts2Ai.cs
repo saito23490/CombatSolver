@@ -37,6 +37,26 @@ internal sealed partial class UnattendedTestRunner
             await PlayerCmd.GainMaxPotionCount(initialSlots, runPlayer);
     }
 
+    /// <summary>
+    /// Pins a per-request node budget before the encounter is entered, so
+    /// the initial automatic search, replans and audits all run under the
+    /// same deterministic profile instead of the instance defaults.
+    /// </summary>
+    private static void Sts2AiApplySearchPolicy(UnattendedTestRequest request)
+    {
+        if (request.SearchMaxExpandedNodesForTest is not { } maxNodes)
+            return;
+        SolverSettingsData current = SolverSettings.Current;
+        SolverSettings.ApplyForTesting(current with
+        {
+            PerformancePreset = SolverPerformancePreset.Custom,
+            SearchMaxExpandedNodes = Math.Max(100, maxNodes),
+            SearchTimeLimitSeconds = 600,
+        });
+        Entry.Logger.Info(
+            $"[CombatSolver/Test] STS2AI_SEARCH_POLICY maxExpandedNodes={Math.Max(100, maxNodes)}");
+    }
+
     private static void Sts2AiEchoInitialState(
         UnattendedTestRunner runner, RunState runState, Player runPlayer)
     {
