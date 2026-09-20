@@ -32,6 +32,13 @@ internal sealed class UnattendedTestRequest
     public MapPointType TargetMapPointType { get; init; } = MapPointType.Unassigned;
     public int? PreCombatPlayerCurrentHpOverride { get; init; }
     public ulong? PreCombatSimulationSeed { get; init; }
+    // STS2AI arena extensions: run-player defaults, initial-state dump and
+    // the deck-then-relics ordering for native acquisition. Implementation
+    // lives in UnattendedTestRunner.Sts2Ai.cs.
+    public int? InitialGold { get; init; }
+    public int? InitialMaxPotionCount { get; init; }
+    public bool DumpInitialState { get; init; }
+    public bool InjectRelicsAfterDeck { get; init; }
     public UnattendedPreCombatMapStep[] PreCombatInterveningMapPoints { get; init; } = [];
     public string[] ExpectedLoadedMods { get; init; } = [];
     public string? ReplayStatePath { get; init; }
@@ -501,6 +508,23 @@ internal sealed class UnattendedRelicInjection
     public bool AddWithoutObtainedEffects { get; init; }
     public Dictionary<string, int> IntegerMembers { get; init; } = new(StringComparer.Ordinal);
     public Dictionary<string, bool> BooleanMembers { get; init; } = new(StringComparer.Ordinal);
+    // STS2AI typed state members and the native-acquisition plan.
+    public Dictionary<string, string> StringMembers { get; init; } = new(StringComparer.Ordinal);
+    public Dictionary<string, string> ModelIdMembers { get; init; } = new(StringComparer.Ordinal);
+    public Dictionary<string, int[]> IntegerArrayMembers { get; init; } = new(StringComparer.Ordinal);
+    public UnattendedPlannedCardToken[][] PlannedChoices { get; init; } = [];
+}
+
+/// <summary>
+/// STS2AI: one planned pick inside a native acquisition choice round.
+/// Occurrence indexes the candidates that remain after the other filters.
+/// </summary>
+internal sealed class UnattendedPlannedCardToken
+{
+    public string CardId { get; init; } = "";
+    public int Occurrence { get; init; }
+    public int? UpgradeLevel { get; init; }
+    public string? EnchantmentId { get; init; }
 }
 
 internal sealed class UnattendedOrbInjection

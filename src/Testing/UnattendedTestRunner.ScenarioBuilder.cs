@@ -230,18 +230,35 @@ internal sealed partial class UnattendedTestRunner
                 runner._completedChecks.Add($"PreCombatPlayerHp:{preCombatPlayerHp}");
             }
             PrepareGeneratedStartingRelics(runPlayer);
-            foreach (UnattendedRelicInjection injection in request.Relics)
-                await InjectRelicAsync(runPlayer, injection);
+            await Sts2AiApplyRunPlayerDefaults(runPlayer, request);
+            // Native acquisition (path A) reads and mutates the deck, so the
+            // STS2AI arena can defer relic injection until the deck is built.
+            if (!request.InjectRelicsAfterDeck)
+            {
+                foreach (UnattendedRelicInjection injection in request.Relics)
+                    await InjectRelicAsync(runPlayer, injection);
+            }
             if (request.ClearRunDeck)
                 ClearRunDeck(runState, runPlayer);
             await PrepareGeneratedAscendersBaneAsync(runState, runPlayer);
             foreach (UnattendedCardInjection injection in request.RunCards)
                 await InjectRunCardAsync(runState, runPlayer, injection);
+            if (request.InjectRelicsAfterDeck)
+            {
+                foreach (UnattendedRelicInjection injection in request.Relics)
+                    await InjectRelicAsync(runPlayer, injection);
+            }
             PrepareGeneratedPotionSlots(runPlayer);
             if (request.PreserveNativeCombatStateForTest)
                 foreach (UnattendedPotionInjection injection in request.Potions)
                     InjectPotionForTest(runPlayer, injection.PotionId);
             CaptureGeneratedLoadout(runState, runPlayer);
+            Sts2AiEchoInitialState(runner, runState, runPlayer);
+            if (request.DumpInitialState)
+            {
+                runner.SetStage("sts2ai_dump_initial_state");
+                Sts2AiWriteStateDump(runState, runPlayer);
+            }
             if (request.VerifyPreCombatForecastApi)
                 await VerifyPreCombatForecastApiAsync(runState, encounter);
 

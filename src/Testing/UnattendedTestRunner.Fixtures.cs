@@ -508,13 +508,26 @@ internal sealed partial class UnattendedTestRunner
         RelicModel canonical = ResolveUnique(ModelDb.AllRelics, injection.RelicId, "遗物");
         RelicModel relic = canonical.ToMutable();
         if (injection.AddWithoutObtainedEffects)
+        {
             player.AddRelicInternal(relic);
-        else
+        }
+        else if (injection.PlannedChoices.Length > 0)
+        {
+            // STS2AI path A: native acquisition answers every choice UI from
+            // the per-round plan before the obtain runs.
+            using IDisposable selector = CardSelectCmd.PushSelector(
+                new SequentialPlannedCardSelector(injection.PlannedChoices));
             relic = await RelicCmd.Obtain(relic, player);
+        }
+        else
+        {
+            relic = await RelicCmd.Obtain(relic, player);
+        }
         foreach ((string memberName, int value) in injection.IntegerMembers)
             SetRelicStateMember(relic, memberName, value);
         foreach ((string memberName, bool value) in injection.BooleanMembers)
             SetRelicStateMember(relic, memberName, value);
+        Sts2AiInjectRelicExtras(relic, injection);
     }
 
     private static void SetRelicStateMember<T>(RelicModel relic, string memberName, T value)
