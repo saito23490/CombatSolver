@@ -1536,7 +1536,13 @@ internal sealed partial class UnattendedTestRunner
                 }
                 else if (!combatState.Enemies.All(static enemy => enemy.IsDead))
                 {
-                    throw new InvalidOperationException("战斗结束，但仍存在未死亡敌人。");
+                    // STS2AI arena contract: some bosses end the fight
+                    // natively with the player alive (special defeats);
+                    // the label records the terminal state either way.
+                    if (!request.AllowAnyCombatTerminal)
+                        throw new InvalidOperationException("战斗结束，但仍存在未死亡敌人。");
+                    runner._completedChecks.Add(
+                        $"Sts2AiNonVictoryTerminal:player_dead={player.Creature.IsDead}");
                 }
             }
             bool combatEnded = !stoppedAfterExpectedReuse
