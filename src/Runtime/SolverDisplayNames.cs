@@ -100,6 +100,11 @@ internal sealed class SolverDisplayNames
         Dictionary<string, string> powerNames = new(StringComparer.Ordinal);
         foreach (PowerModel power in ModelDb.AllPowers)
         {
+            // Test-only mock models are registered in ModelDb but carry no
+            // localization entries in non-English tables; localizing them
+            // throws and aborts the whole search setup.
+            if (power.IsMock)
+                continue;
             string title = power.Title.GetFormattedText();
             powerNames.TryAdd(power.Id.Entry, title);
             powerNames.TryAdd(power.GetType().Name, title);
