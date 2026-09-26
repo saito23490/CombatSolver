@@ -166,6 +166,8 @@ internal sealed partial class UnattendedTestRunner
                 return RunCompletion.InitialSearchHeld;
             }
             _assertions.AssertAfterExecution(scenario, outcome);
+            if (outcome.CombatEnded)
+                _writer.ActualOutcome = CombatBugReportExporter.CaptureOutcome(combatState);
             if (_writer.GeneratedScenario != null)
             {
                 _writer.GeneratedScenario["combatEnded"] = outcome.CombatEnded;

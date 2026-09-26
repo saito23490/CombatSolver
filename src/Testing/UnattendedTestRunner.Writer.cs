@@ -25,6 +25,7 @@ internal sealed partial class UnattendedTestRunner
         public System.Text.Json.Nodes.JsonObject? ReplayVerification { get; set; }
         public bool ProcessReusable { get; set; }
         public System.Text.Json.Nodes.JsonObject? GeneratedScenario { get; set; }
+        public CombatReplayOutcomeSnapshot? ActualOutcome { get; set; }
 
         public void WriteGeneratedArtifact(string name, object value)
         {
@@ -193,6 +194,7 @@ internal sealed partial class UnattendedTestRunner
                 ReplayVerification = ReplayVerification,
                 GeneratedScenario = GeneratedScenario,
                 TeacherTrace = Sts2AiCaptureTeacherTrace(),
+                ActualOutcome = ActualOutcome,
                 StageTimings = captureStageTimings(),
                 CompletedChecks = completedChecks.ToArray(),
                 Error = error,

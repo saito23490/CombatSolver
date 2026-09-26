@@ -568,6 +568,7 @@ internal sealed class UnattendedTestResult
     public System.Text.Json.Nodes.JsonObject? ReplayVerification { get; init; }
     public System.Text.Json.Nodes.JsonObject? GeneratedScenario { get; init; }
     public System.Text.Json.Nodes.JsonObject[] TeacherTrace { get; init; } = [];
+    public CombatReplayOutcomeSnapshot? ActualOutcome { get; init; }
     public UnattendedStageTiming[] StageTimings { get; init; } = [];
     public string[] CompletedChecks { get; init; } = [];
     public string? Error { get; init; }
