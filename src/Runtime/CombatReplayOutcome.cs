@@ -10,7 +10,7 @@ namespace CombatSolver;
 
 internal sealed record RecordedPotionUse(string PotionId, uint? TargetCombatId, int Turn, int? SlotIndex, string Origin);
 internal sealed record CombatReplayOutcomeSnapshot(
-    int InitialHp, int FinalHp, int HpLost, int HpHealed, int SelfDamage,
+    int InitialHp, int FinalHp, int FinalMaxHp, int HpLost, int HpHealed, int SelfDamage,
     bool CombatEnded, bool Survived, int FinalEnemyHp, RecordedPotionUse[] Potions, int UnattributedHpLoss);
 
 // Independent observation ledger; recording must not advance the solver's damage accounting.
@@ -56,7 +56,7 @@ internal sealed class CombatReplayOutcome : IDisposable
         int accountedDamage = history.OfType<DamageReceivedEntry>().Where(entry => ReferenceEquals(entry.Receiver, player))
             .Sum(entry => Math.Max(0, entry.Result.UnblockedDamage - entry.Result.OverkillDamage));
         return new CombatReplayOutcomeSnapshot(
-            _initialHp, player.CurrentHp, _hpLost, _hpHealed,
+            _initialHp, player.CurrentHp, player.MaxHp, _hpLost, _hpHealed,
             history.OfType<DamageReceivedEntry>().Where(entry => ReferenceEquals(entry.Receiver, player)
                 && ReferenceEquals(entry.Dealer, player)).Sum(entry => Math.Max(0, entry.Result.UnblockedDamage - entry.Result.OverkillDamage)),
             ended, player.CurrentHp > 0, state.Enemies.Sum(enemy => Math.Max(0, enemy.CurrentHp)),
