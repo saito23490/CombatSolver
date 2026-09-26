@@ -13,6 +13,7 @@ using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Entities.Relics;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Relics;
+using MegaCrit.Sts2.Core.MonsterMoves.Intents;
 using MegaCrit.Sts2.Core.Runs;
 using MegaCrit.Sts2.Core.Saves.Runs;
 using MegaCrit.Sts2.Core.TestSupport;
@@ -158,6 +159,17 @@ internal sealed partial class UnattendedTestRunner
                 hp = enemy.CurrentHp,
                 maxHp = enemy.MaxHp,
                 block = enemy.Block,
+                moveId = enemy.Monster?.NextMove?.Id,
+                intents = enemy.Monster?.NextMove?.Intents.Select(intent => new
+                {
+                    kind = intent.GetType().Name,
+                    damage = intent is AttackIntent attack
+                        ? (int?)Math.Max(0, (int)(attack.DamageCalc?.Invoke() ?? 0m))
+                        : null,
+                    repeats = intent is AttackIntent repeated
+                        ? (int?)Math.Max(1, repeated.Repeats)
+                        : null,
+                }).ToArray(),
                 powers = enemy.Powers.Select(power => new
                 {
                     id = power.Id.Entry,

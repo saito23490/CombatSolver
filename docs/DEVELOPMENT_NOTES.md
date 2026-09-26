@@ -2874,3 +2874,4 @@ Beam 中间排序与最终选择分离。稳健预设把 `1 HP` 约视为 `3` �
 # STS2AI unattended teacher extensions
 
 - `actualOutcome` includes `finalMaxHp` so an external full-run simulator can preserve native combat-time maximum-HP changes instead of silently resetting them after the battle.
+- STS2AI teacher observations include each enemy's current move ID and visible intents, including attack damage and repeat count, so a distilled policy never has to infer the displayed enemy attack from identity alone.
