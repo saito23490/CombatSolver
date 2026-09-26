@@ -192,6 +192,7 @@ internal sealed partial class UnattendedTestRunner
                 SolverMetrics = _solverMetrics,
                 ReplayVerification = ReplayVerification,
                 GeneratedScenario = GeneratedScenario,
+                TeacherTrace = Sts2AiCaptureTeacherTrace(),
                 StageTimings = captureStageTimings(),
                 CompletedChecks = completedChecks.ToArray(),
                 Error = error,

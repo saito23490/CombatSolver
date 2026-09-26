@@ -38,6 +38,7 @@ internal sealed class UnattendedTestRequest
     public int? InitialGold { get; init; }
     public int? InitialMaxPotionCount { get; init; }
     public bool DumpInitialState { get; init; }
+    public bool CaptureTeacherTrace { get; init; }
     public bool InjectRelicsAfterDeck { get; init; }
     // STS2AI: deterministic per-request node budget. Applied before the
     // encounter is entered so the initial automatic search runs under it.
@@ -566,6 +567,7 @@ internal sealed class UnattendedTestResult
     public UnattendedSolverMetrics? SolverMetrics { get; init; }
     public System.Text.Json.Nodes.JsonObject? ReplayVerification { get; init; }
     public System.Text.Json.Nodes.JsonObject? GeneratedScenario { get; init; }
+    public System.Text.Json.Nodes.JsonObject[] TeacherTrace { get; init; } = [];
     public UnattendedStageTiming[] StageTimings { get; init; } = [];
     public string[] CompletedChecks { get; init; } = [];
     public string? Error { get; init; }

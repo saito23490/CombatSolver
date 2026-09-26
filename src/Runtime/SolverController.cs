@@ -2835,6 +2835,7 @@ internal static partial class SolverController
                     ? Stopwatch.GetTimestamp()
                     : 0;
                 Task actionCompletion;
+                int teacherTraceIndex = -1;
                 if (action.Kind == PlanActionKind.UsePotion)
                 {
                     PotionModel? potion = player.GetPotionAtSlotIndex(action.PotionSlot);
@@ -2866,6 +2867,8 @@ internal static partial class SolverController
                             deployWhenReady: !_combat.FullAutoEnabled);
                         return;
                     }
+                    teacherTraceIndex = UnattendedTestRunner.Sts2AiBeginTeacherAction(
+                        state, player, action, result, actionIndex);
                     GameAction queuedAction = await EnqueueAndCaptureActionAsync(
                         candidate => candidate is UsePotionAction usePotion
                             && ReferenceEquals(usePotion.Player, player)
@@ -2901,6 +2904,8 @@ internal static partial class SolverController
                             deployWhenReady: !_combat.FullAutoEnabled);
                         return;
                     }
+                    teacherTraceIndex = UnattendedTestRunner.Sts2AiBeginTeacherAction(
+                        state, player, action, result, actionIndex);
                     GameAction queuedAction = await EnqueueAndCaptureActionAsync(
                         candidate => candidate is PlayCardAction playCard
                             && ReferenceEquals(playCard.NetCombatCard.ToCardModelOrNull(), card),
@@ -2930,6 +2935,8 @@ internal static partial class SolverController
                     choiceSession.ReleaseVisibleSurface();
                     throw;
                 }
+                UnattendedTestRunner.Sts2AiCompleteTeacherAction(
+                    teacherTraceIndex, state, player);
                 if (measureDeploymentTiming)
                 {
                     Entry.Logger.Info(
@@ -3019,6 +3026,8 @@ internal static partial class SolverController
                 SolverOverlay.ShowEndTurnDeploymentStep();
                 await host.ToSignal(host.GetTree(), SceneTree.SignalName.ProcessFrame);
                 token.ThrowIfCancellationRequested();
+                UnattendedTestRunner.Sts2AiBeginTeacherAction(
+                    state, player, plannedEndTurn, result, actions.Count);
                 PlanCardChoice[] endTurnChoices = plannedEndTurn.TurnStartChoices?
                     .Where(choice => choice.Timing is PlanChoiceTiming.PlayerTurnEnd or PlanChoiceTiming.EnemyTurn)
                     .ToArray() ?? [];

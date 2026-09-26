@@ -2,8 +2,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using MegaCrit.Sts2.Core.Commands;
+using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.CardRewardAlternatives;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Players;
@@ -28,6 +30,118 @@ namespace CombatSolver;
 /// </summary>
 internal sealed partial class UnattendedTestRunner
 {
+    private static bool _sts2AiTeacherTraceEnabled;
+    private static readonly List<JsonObject> Sts2AiTeacherTrace = [];
+
+    private static void Sts2AiResetTeacherTrace(bool enabled)
+    {
+        _sts2AiTeacherTraceEnabled = enabled;
+        Sts2AiTeacherTrace.Clear();
+    }
+
+    internal static JsonObject[] Sts2AiCaptureTeacherTrace()
+        => _sts2AiTeacherTraceEnabled
+            ? Sts2AiTeacherTrace.Select(row => (JsonObject)row.DeepClone()).ToArray()
+            : [];
+
+    internal static int Sts2AiBeginTeacherAction(
+        CombatState state, Player player, PlanAction action, SolverResult result, int actionIndex)
+    {
+        if (!_sts2AiTeacherTraceEnabled)
+            return -1;
+        JsonObject row = new()
+        {
+            ["schemaVersion"] = 1,
+            ["turn"] = action.Turn,
+            ["actionIndex"] = actionIndex,
+            ["action"] = JsonSerializer.SerializeToNode(new
+            {
+                kind = action.Kind.ToString(),
+                cardId = action.CardId,
+                cardOccurrence = action.CardOccurrence,
+                cardUpgradeLevel = action.CardUpgradeLevel,
+                cardEnchantmentId = action.CardEnchantmentId,
+                potionId = action.PotionId,
+                potionSlot = action.PotionSlot,
+                targetIndex = action.TargetIndex,
+                targetCombatId = action.TargetCombatId,
+            }, UnattendedTestFiles.JsonOptions),
+            ["search"] = JsonSerializer.SerializeToNode(new
+            {
+                score = result.BestNode.Score,
+                boundary = result.BoundaryReason.ToString(),
+                selectedExpanded = result.ExpandedNodes,
+                totalExpanded = result.TotalExpandedNodes,
+                onlyDeathRoutes = result.OnlyDeathRoutesFound,
+            }, UnattendedTestFiles.JsonOptions),
+            ["before"] = Sts2AiCaptureCombatObservation(state, player),
+        };
+        Sts2AiTeacherTrace.Add(row);
+        return Sts2AiTeacherTrace.Count - 1;
+    }
+
+    internal static void Sts2AiCompleteTeacherAction(int index, CombatState state, Player player)
+    {
+        if (index < 0 || index >= Sts2AiTeacherTrace.Count)
+            return;
+        Sts2AiTeacherTrace[index]["after"] = Sts2AiCaptureCombatObservation(state, player);
+    }
+
+    private static JsonObject Sts2AiCaptureCombatObservation(CombatState state, Player player)
+    {
+        var pcs = player.PlayerCombatState!;
+        object Cards(IEnumerable<CardModel> cards) => cards.Select((card, index) => new
+        {
+            index,
+            id = card.Id.Entry,
+            upgrade = card.CurrentUpgradeLevel,
+            enchantment = card.Enchantment?.Id.Entry,
+            energyCost = card.EnergyCost.GetAmountToSpend(),
+            starCost = card.GetStarCostWithModifiers(),
+        }).ToArray();
+        return JsonSerializer.SerializeToNode(new
+        {
+            player = new
+            {
+                hp = player.Creature.CurrentHp,
+                maxHp = player.Creature.MaxHp,
+                block = player.Creature.Block,
+                energy = pcs.Energy,
+                stars = pcs.Stars,
+                powers = player.Creature.Powers.Select(power => new
+                {
+                    id = power.Id.Entry,
+                    amount = power.Amount,
+                    amountOnTurnStart = power.AmountOnTurnStart,
+                }).ToArray(),
+            },
+            hand = Cards(pcs.Hand.Cards),
+            draw = Cards(pcs.DrawPile.Cards),
+            discard = Cards(pcs.DiscardPile.Cards),
+            exhaust = Cards(pcs.ExhaustPile.Cards),
+            potions = player.Potions.Select((potion, slot) => new
+            {
+                slot,
+                id = potion?.Id.Entry,
+            }).ToArray(),
+            enemies = state.Enemies.Select((enemy, index) => new
+            {
+                index,
+                combatId = enemy.CombatId,
+                id = enemy.Monster?.Id.Entry,
+                hp = enemy.CurrentHp,
+                maxHp = enemy.MaxHp,
+                block = enemy.Block,
+                powers = enemy.Powers.Select(power => new
+                {
+                    id = power.Id.Entry,
+                    amount = power.Amount,
+                    amountOnTurnStart = power.AmountOnTurnStart,
+                }).ToArray(),
+            }).ToArray(),
+        }, UnattendedTestFiles.JsonOptions)!.AsObject();
+    }
+
     private static async Task Sts2AiApplyRunPlayerDefaults(
         Player runPlayer, UnattendedTestRequest request)
     {

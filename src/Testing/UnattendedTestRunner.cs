@@ -101,6 +101,7 @@ internal sealed partial class UnattendedTestRunner
     {
         _host = host;
         _request = request;
+        Sts2AiResetTeacherTrace(request.CaptureTeacherTrace);
         if (request.ScenarioId.StartsWith("MODEL-STATE-INTEGRATION", StringComparison.Ordinal))
             RegisterModelStateIntegrationAdapters();
         if (request.ScenarioId.StartsWith("ADAPTED-ONPLAY-INTEGRATION", StringComparison.Ordinal))
