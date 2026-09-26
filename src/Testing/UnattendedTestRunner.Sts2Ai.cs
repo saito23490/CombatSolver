@@ -8,6 +8,7 @@ using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.CardRewardAlternatives;
 using MegaCrit.Sts2.Core.Entities.Cards;
+using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Entities.Relics;
 using MegaCrit.Sts2.Core.Models;
@@ -99,6 +100,31 @@ internal sealed partial class UnattendedTestRunner
             energyCost = card.EnergyCost.GetAmountToSpend(),
             starCost = card.GetStarCostWithModifiers(),
         }).ToArray();
+        List<object> legalActions = [];
+        Dictionary<string, int> occurrences = new(StringComparer.Ordinal);
+        foreach (CardModel card in pcs.Hand.Cards)
+        {
+            int occurrence = occurrences.GetValueOrDefault(card.Id.Entry);
+            occurrences[card.Id.Entry] = occurrence + 1;
+            Creature?[] targets = [null, player.Creature, .. state.Enemies];
+            HashSet<uint?> emittedTargets = [];
+            foreach (Creature? target in targets)
+            {
+                uint? combatId = target?.CombatId;
+                if (!emittedTargets.Add(combatId) || !card.CanPlayTargeting(target))
+                    continue;
+                legalActions.Add(new
+                {
+                    kind = PlanActionKind.PlayCard.ToString(),
+                    cardId = card.Id.Entry,
+                    cardOccurrence = occurrence,
+                    cardUpgradeLevel = card.CurrentUpgradeLevel,
+                    cardEnchantmentId = card.Enchantment?.Id.Entry,
+                    targetCombatId = combatId,
+                });
+            }
+        }
+        legalActions.Add(new { kind = PlanActionKind.EndTurn.ToString() });
         return JsonSerializer.SerializeToNode(new
         {
             player = new
@@ -139,6 +165,7 @@ internal sealed partial class UnattendedTestRunner
                     amountOnTurnStart = power.AmountOnTurnStart,
                 }).ToArray(),
             }).ToArray(),
+            legalActions,
         }, UnattendedTestFiles.JsonOptions)!.AsObject();
     }
 
