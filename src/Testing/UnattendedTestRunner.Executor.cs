@@ -1466,6 +1466,8 @@ internal sealed partial class UnattendedTestRunner
                 maximumUnexpectedReplans,
                 SolverController.UnexpectedReplanCountForTesting);
             await RunManager.Instance.ActionExecutor.FinishedExecutingActions();
+            // 玩家动作 trace 看不到敌方回合结束后的实时状态；战斗结束时补一条终局记录。
+            UnattendedTestRunner.Sts2AiRecordTeacherTerminal(CombatManager.Instance.DebugOnlyGetState(), player);
             while (SolverController.IsDeploying)
             {
                 runner.EnsureWithinDeadline();

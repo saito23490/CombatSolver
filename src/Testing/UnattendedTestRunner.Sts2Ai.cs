@@ -89,6 +89,49 @@ internal sealed partial class UnattendedTestRunner
         Sts2AiTeacherTrace[index]["after"] = Sts2AiCaptureCombatObservation(state, player);
     }
 
+    /// <summary>
+    /// 终局记录：玩家动作 trace 覆盖不到敌方回合结束后的实时状态（多阶段 Boss 的"特殊判负"
+    /// 就发生在那一段）。这里在战斗结束时补一条 <c>record=terminal</c> 的记录，
+    /// 带上实时终局观测量与终局标志，供离线↔真机按"实时终局"口径对照。
+    /// </summary>
+    internal static void Sts2AiRecordTeacherTerminal(CombatState? state, Player player)
+    {
+        if (!_sts2AiTeacherTraceEnabled)
+            return;
+        JsonObject row = new()
+        {
+            ["schemaVersion"] = 1,
+            ["record"] = "terminal",
+            ["combatEnded"] = !CombatManager.Instance.IsInProgress,
+            ["overOrEnding"] = CombatManager.Instance.IsOverOrEnding,
+            ["player"] = JsonSerializer.SerializeToNode(new
+            {
+                hp = player.Creature.CurrentHp,
+                maxHp = player.Creature.MaxHp,
+                block = player.Creature.Block,
+                powers = player.Creature.Powers.Select(power => new
+                {
+                    id = power.Id.Entry,
+                    amount = power.Amount,
+                }).ToArray(),
+            }, UnattendedTestFiles.JsonOptions),
+            ["enemies"] = JsonSerializer.SerializeToNode(
+                state?.Enemies.Select((enemy, index) => new
+                {
+                    index,
+                    combatId = enemy.CombatId,
+                    id = enemy.Monster?.Id.Entry,
+                    hp = enemy.CurrentHp,
+                    maxHp = enemy.MaxHp,
+                    isAlive = enemy.IsAlive,
+                    nextMoveId = enemy.Monster?.NextMove?.Id,
+                }).ToArray() ?? [], UnattendedTestFiles.JsonOptions),
+        };
+        if (state != null && player.PlayerCombatState != null)
+            row["after"] = Sts2AiCaptureCombatObservation(state, player);
+        Sts2AiTeacherTrace.Add(row);
+    }
+
     private static JsonObject Sts2AiCaptureCombatObservation(CombatState state, Player player)
     {
         var pcs = player.PlayerCombatState!;
