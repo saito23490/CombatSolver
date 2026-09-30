@@ -1617,6 +1617,7 @@ internal sealed partial class CombatBeamSolver
                 List<SearchNode> nextPlays = [];
                 void AcceptExpandedChild(SearchNode node, SearchNode child)
                 {
+                    TraceFirstAction(child);
                     ObserveSearchPath(child, SearchPathObservationStage.ActionAdmitted, "expansion_commit");
                     if (child.Score > fallback.Score)
                         fallback = child;
@@ -2167,8 +2168,56 @@ internal sealed partial class CombatBeamSolver
         return result;
     }
 
-    /// <summary>D1：finalCandidates 已按 RankFinal 排好序；每个第一步取排名最高的那条。</summary>
-    private static IReadOnlyList<FirstActionSummary> SummarizeFirstActions(List<SearchNode> rankedCandidates)
+    /// <summary>R9：按第一步记录搜索中见过的最深位置和最高分节点（只在主循环线程上调用）。</summary>
+    private sealed class FirstActionTrace(PlanAction first)
+    {
+        public PlanAction First { get; } = first;
+        public int DeepestActionCount;
+        public int DeepestTurn;
+        public double BestScore = double.NegativeInfinity;
+        public bool Won;
+        public bool PlayerDead;
+        public int ProjectedPlayerHp;
+        public int EnemyHp;
+        public int AliveEnemyCount;
+        public int? CombatEndedTurn;
+        public int PotionUseCount;
+    }
+
+    private readonly Dictionary<string, FirstActionTrace> _firstActionTraces = [];
+
+    private static string FirstActionKey(PlanAction first)
+        => $"{first.Turn}|{first.Kind}|{first.CardId}|{first.PotionId}|{first.PotionSlot}"
+            + $"|{first.TargetCombatId}|{first.CardStateKey}";
+
+    private void TraceFirstAction(SearchNode child)
+    {
+        SearchNode depthOne = child;
+        while (depthOne.Parent?.Parent != null)
+            depthOne = depthOne.Parent;
+        if (depthOne.Parent == null || depthOne.Action is not { } first)
+            return;
+        string key = FirstActionKey(first);
+        if (!_firstActionTraces.TryGetValue(key, out FirstActionTrace? trace))
+            _firstActionTraces[key] = trace = new FirstActionTrace(first);
+        trace.DeepestActionCount = Math.Max(trace.DeepestActionCount, child.ActionCount);
+        trace.DeepestTurn = Math.Max(trace.DeepestTurn, child.Turn);
+        if (child.Score <= trace.BestScore)
+            return;
+        SimulationSnapshot snapshot = child.Snapshot;
+        trace.BestScore = child.Score;
+        trace.Won = snapshot.AllEnemiesDead && !snapshot.PlayerDead;
+        trace.PlayerDead = snapshot.PlayerDead;
+        trace.ProjectedPlayerHp = snapshot.ProjectedPlayerHp;
+        trace.EnemyHp = snapshot.EnemyHp;
+        trace.AliveEnemyCount = snapshot.AliveEnemyCount;
+        trace.CombatEndedTurn = snapshot.CombatEndedTurn;
+        trace.PotionUseCount = snapshot.PotionUseCount;
+    }
+
+    /// <summary>D1：finalCandidates 已按 RankFinal 排好序；每个第一步取排名最高的那条。
+    /// R9：搜索中出现过、却没进最终候选池的第一步追加一行（Pruned，下界）。</summary>
+    private IReadOnlyList<FirstActionSummary> SummarizeFirstActions(List<SearchNode> rankedCandidates)
     {
         Dictionary<string, FirstActionSummary> best = [];
         Dictionary<string, int> counts = [];
@@ -2179,8 +2228,7 @@ internal sealed partial class CombatBeamSolver
             if (actions.Count == 0)
                 continue;
             PlanAction first = actions[0];
-            string key = $"{first.Turn}|{first.Kind}|{first.CardId}|{first.PotionId}|{first.PotionSlot}"
-                + $"|{first.TargetCombatId}|{first.CardStateKey}";
+            string key = FirstActionKey(first);
             counts[key] = counts.GetValueOrDefault(key) + 1;
             if (best.ContainsKey(key))
                 continue;
@@ -2199,9 +2247,29 @@ internal sealed partial class CombatBeamSolver
                 node.Score,
                 actions.TakeWhile(action => action.Turn == first.Turn).ToList());
         }
-        return best.Select(pair => pair.Value with { CandidateCount = counts[pair.Key] })
+        List<FirstActionSummary> summaries = best
+            .Select(pair => pair.Value with
+            {
+                CandidateCount = counts[pair.Key],
+                DeepestActionCount = _firstActionTraces.GetValueOrDefault(pair.Key)?.DeepestActionCount ?? 0,
+                DeepestTurn = _firstActionTraces.GetValueOrDefault(pair.Key)?.DeepestTurn ?? 0,
+            })
             .OrderBy(summary => summary.BestRank)
             .ToList();
+        foreach (var (key, trace) in _firstActionTraces)
+        {
+            if (best.ContainsKey(key))
+                continue;
+            summaries.Add(new FirstActionSummary(
+                trace.First, -1, 0, trace.Won, trace.PlayerDead, trace.ProjectedPlayerHp, trace.EnemyHp,
+                trace.AliveEnemyCount, trace.CombatEndedTurn, trace.PotionUseCount, trace.BestScore, [trace.First])
+            {
+                Pruned = true,
+                DeepestActionCount = trace.DeepestActionCount,
+                DeepestTurn = trace.DeepestTurn,
+            });
+        }
+        return summaries;
     }
 
     private SearchNode? ApplyFixedPrefix(SearchNode seed)

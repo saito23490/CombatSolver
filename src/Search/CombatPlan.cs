@@ -1378,7 +1378,15 @@ internal sealed record FirstActionSummary(
     int? CombatEndedTurn,
     int PotionUseCount,
     double Score,
-    IReadOnlyList<PlanAction> FirstTurnActions);
+    IReadOnlyList<PlanAction> FirstTurnActions)
+{
+    /// <summary>R9：这个第一步没有撑到最终候选池（被束搜索剪掉）。此时 BestRank 为 -1，
+    /// 结局字段取自它在搜索中见过的最高分节点，只能当下界，不代表这一步的真实价值。</summary>
+    public bool Pruned { get; init; }
+    /// <summary>这个第一步的路线在搜索中走到过的最大动作数和最远回合。</summary>
+    public int DeepestActionCount { get; init; }
+    public int DeepestTurn { get; init; }
+}
 
 /// <summary>最终路线的只读标量摘要；不持有 CombatPredictionSimulator。</summary>
 internal sealed record SolverSnapshot(
