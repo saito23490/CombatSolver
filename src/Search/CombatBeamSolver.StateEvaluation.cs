@@ -505,6 +505,12 @@ internal sealed partial class CombatBeamSolver
             aliveEnemyMask,
             potionInventoryKey,
             boundary);
+        if (_externalValue != null && !won && !dead)
+        {
+            score = _externalValue.Evaluate(
+                new ExternalValueQuery(combat, _player, turn, actionCount, boundary, projectedHp),
+                score);
+        }
         return new SimulationSnapshot(
             score,
             key,

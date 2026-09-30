@@ -78,6 +78,7 @@ internal sealed partial class CombatBeamSolver(
         minimumPotionUses,
         fixedPrefixActions);
     private readonly SolverTheftPolicy? _theftPolicy = policy.TheftPolicy;
+    private readonly ISearchValueEvaluator? _externalValue = policy.ExternalValue;
     private readonly PotionStrategySnapshot _potionStrategy = policy.PotionStrategy;
     private readonly bool _forceAllPotionsDisabled = potionPolicyOverride == SolverPotionPolicy.Disabled;
     private readonly bool _enforcePotionDirectives = potionPolicyOverride == null;

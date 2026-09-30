@@ -19,6 +19,9 @@ internal sealed record SearchPolicySnapshot(
     SearchFramePressureSignal FramePressureSignal,
     SearchMemoryPressureSignal MemoryPressureSignal)
 {
+    /// <summary>E：外部估值回调；为空时行为完全不变（见 <see cref="ISearchValueEvaluator"/>）。</summary>
+    public ISearchValueEvaluator? ExternalValue { get; init; }
+
     public bool UseNoveltyPortfolio { get; init; }
     public bool PredictPotionReward { get; init; }
     public NoveltySearchOptions? NoveltySearch { get; init; }

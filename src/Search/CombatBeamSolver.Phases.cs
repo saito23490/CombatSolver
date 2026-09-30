@@ -2161,9 +2161,47 @@ internal sealed partial class CombatBeamSolver
             searchedTurnLayers,
             timeBudgetReached,
             memoryNoProgressTruncated);
+        result.FirstActionSummaries = SummarizeFirstActions(finalCandidates);
         foreach (SearchNode candidate in finalCandidates)
             candidate.Snapshot.ReleaseSimulator();
         return result;
+    }
+
+    /// <summary>D1：finalCandidates 已按 RankFinal 排好序；每个第一步取排名最高的那条。</summary>
+    private static IReadOnlyList<FirstActionSummary> SummarizeFirstActions(List<SearchNode> rankedCandidates)
+    {
+        Dictionary<string, FirstActionSummary> best = [];
+        Dictionary<string, int> counts = [];
+        for (int rank = 0; rank < rankedCandidates.Count; rank++)
+        {
+            SearchNode node = rankedCandidates[rank];
+            IReadOnlyList<PlanAction> actions = node.Actions;
+            if (actions.Count == 0)
+                continue;
+            PlanAction first = actions[0];
+            string key = $"{first.Turn}|{first.Kind}|{first.CardId}|{first.PotionId}|{first.PotionSlot}"
+                + $"|{first.TargetCombatId}|{first.CardStateKey}";
+            counts[key] = counts.GetValueOrDefault(key) + 1;
+            if (best.ContainsKey(key))
+                continue;
+            SimulationSnapshot snapshot = node.Snapshot;
+            best[key] = new FirstActionSummary(
+                first,
+                rank,
+                0,
+                snapshot.AllEnemiesDead && !snapshot.PlayerDead,
+                snapshot.PlayerDead,
+                snapshot.ProjectedPlayerHp,
+                snapshot.EnemyHp,
+                snapshot.AliveEnemyCount,
+                snapshot.CombatEndedTurn,
+                snapshot.PotionUseCount,
+                node.Score,
+                actions.TakeWhile(action => action.Turn == first.Turn).ToList());
+        }
+        return best.Select(pair => pair.Value with { CandidateCount = counts[pair.Key] })
+            .OrderBy(summary => summary.BestRank)
+            .ToList();
     }
 
     private SearchNode? ApplyFixedPrefix(SearchNode seed)

@@ -1361,6 +1361,25 @@ internal sealed record SelectedSearchPlan(
     int ActionCount,
     double Score);
 
+/// <summary>
+/// 按第一步动作分组的最终候选摘要（D1）：每个第一步取最终候选池里排名最高的那条路线。
+/// 只覆盖撑到最终候选池的第一步；被束搜索提前剪掉的第一步不在这里（不是"价值低"的证明）。
+/// 纯记录，不参与任何选择。
+/// </summary>
+internal sealed record FirstActionSummary(
+    PlanAction FirstAction,
+    int BestRank,
+    int CandidateCount,
+    bool Won,
+    bool PlayerDead,
+    int ProjectedPlayerHp,
+    int EnemyHp,
+    int AliveEnemyCount,
+    int? CombatEndedTurn,
+    int PotionUseCount,
+    double Score,
+    IReadOnlyList<PlanAction> FirstTurnActions);
+
 /// <summary>最终路线的只读标量摘要；不持有 CombatPredictionSimulator。</summary>
 internal sealed record SolverSnapshot(
     bool HasRisk,
@@ -1591,6 +1610,8 @@ internal sealed class SolverResult
     public required int? CombatEndedTurn { get; init; }
     public required int? DeathTurn { get; init; }
     public required bool OnlyDeathRoutesFound { get; init; }
+    /// <summary>D1：按第一步分组的最终候选摘要（按最优排名排序）；续用得到的结果为空。</summary>
+    public IReadOnlyList<FirstActionSummary> FirstActionSummaries { get; internal set; } = [];
     public required bool IsActEndingBoss { get; init; }
     public required BossHpRelief BossHpRelief { get; init; }
     public required TimeSpan Elapsed { get; init; }
