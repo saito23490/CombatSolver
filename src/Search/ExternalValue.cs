@@ -20,4 +20,7 @@ internal readonly record struct ExternalValueQuery(
     int Turn,
     int ActionCount,
     SearchBoundaryReason Boundary,
-    int ProjectedPlayerHp);
+    int ProjectedPlayerHp,
+    // 这次评估的节点是否刚跨过回合（重放的动作里含结束回合、并已推进到下一回合）。
+    // 回合边界节点是求解器必须"猜之后会怎样"的地方，最适合交给网络估值。
+    bool TurnBoundary = false);

@@ -46,7 +46,8 @@ internal sealed partial class CombatBeamSolver
         int actionCount,
         int shufflesCrossed,
         SearchBoundaryReason boundary,
-        IReadOnlySet<uint> processedEnemyDeaths)
+        IReadOnlySet<uint> processedEnemyDeaths,
+        bool turnBoundary = false)
     {
         SimCreatureState player = simulator.State.GetCreature(_player.Creature);
         SimulatedCombatState combat = (SimulatedCombatState)simulator.State.CombatState;
@@ -508,7 +509,7 @@ internal sealed partial class CombatBeamSolver
         if (_externalValue != null && !won && !dead)
         {
             score = _externalValue.Evaluate(
-                new ExternalValueQuery(combat, _player, turn, actionCount, boundary, projectedHp),
+                new ExternalValueQuery(combat, _player, turn, actionCount, boundary, projectedHp, turnBoundary),
                 score);
         }
         return new SimulationSnapshot(

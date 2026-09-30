@@ -604,7 +604,8 @@ internal sealed partial class CombatBeamSolver
             priorActionCount + actions.Count,
             shufflesCrossed,
             boundary,
-            processedEnemyDeaths);
+            processedEnemyDeaths,
+            turnBoundary: turn != (parentSnapshot is null ? _startTurnNumber : startingTurn));
         _run.Performance.End(SearchMetricPhase.Snapshot, snapshotMeasurement);
         try { cardChoiceCapture?.Receive(this, simulator, processedEnemyDeaths); }
         catch { snapshot.ReleaseSimulator(); throw; }
