@@ -4,6 +4,9 @@ internal sealed partial class CombatBeamSolver
 {
     private const string BlockPotionId = "BLOCK_POTION";
 
+    /// <summary>插入格挡药后的路线回放与原路线分叉（原路线的后续动作不再适用）。</summary>
+    private sealed class BlockPotionRouteDivergedException(string message) : Exception(message);
+
     private sealed record BlockPotionInsertion(
         SearchNode Node,
         RouteAnnotations Annotations,
@@ -81,11 +84,29 @@ internal sealed partial class CombatBeamSolver
             insertionIndex + 1,
             originalActions.Length - insertionIndex);
 
-        SearchNode inserted = ReplayInsertedRoute(
-            insertedActions,
-            original.GetTurnSetupChoices(),
-            original.GetTurnSetupPlayState(),
-            originalAnnotations);
+        SearchNode inserted;
+        try
+        {
+            inserted = ReplayInsertedRoute(
+                insertedActions,
+                original.GetTurnSetupChoices(),
+                original.GetTurnSetupPlayState(),
+                originalAnnotations);
+        }
+        catch (Exception error) when (error is BlockPotionRouteDivergedException
+            or SearchTransitionException
+            or InvalidPlannedChoiceBranchException)
+        {
+            // The rest of the route was planned without the potion; once the potion changes the
+            // state (draws, enemy reactions, an earlier kill) those actions may no longer apply.
+            // The insertion is an optional refinement of an already complete victory, so a
+            // diverging replay rejects it and the original route stands.
+            policy.Diagnostics.Info(
+                $"[CombatSolver/Test] BLOCK_POTION_ROUTE_REJECTED " +
+                $"turn={targetTurn.Turn} slot={selectedPotion.Slot} reason=replay_diverged " +
+                $"error={error.GetType().Name}: {(error.InnerException ?? error).Message}");
+            return null;
+        }
         RouteAnnotations insertedAnnotations = BuildRouteAnnotations(inserted);
         int hpSaved = original.Snapshot.CumulativePlayerHpLost
             - inserted.Snapshot.CumulativePlayerHpLost;
@@ -150,9 +171,15 @@ internal sealed partial class CombatBeamSolver
         {
             foreach (PlanAction action in actions)
             {
+                if (current.IsTerminal)
+                {
+                    throw new BlockPotionRouteDivergedException(
+                        $"格挡药插入路线在第 {current.ActionCount} 个动作后已到终局或搜索边界，" +
+                        $"还剩动作 {action.Kind}@turn={action.Turn}。");
+                }
                 if (action.Turn != current.Turn)
                 {
-                    throw new InvalidOperationException(
+                    throw new BlockPotionRouteDivergedException(
                         $"格挡药插入路线的动作回合不连续：action_turn={action.Turn} " +
                         $"state_turn={current.Turn}。");
                 }
