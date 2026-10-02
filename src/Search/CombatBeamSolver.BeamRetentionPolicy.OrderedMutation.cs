@@ -482,7 +482,13 @@ internal sealed partial class CombatBeamSolver
                     claimSources,
                     selectedSet,
                     packetComparer);
-            HashSet<OrderedMutationAdmissionClaim> appliedAdmissionClaims = [];
+            // Identity, not record equality: a claim's synthesized GetHashCode hashes its packet,
+            // whose SearchNodes hash their whole parent chain and cycle states. That made each Add
+            // cost grow with search depth (a production search spent >10 min here). Every claim is
+            // a distinct object from CoalesceOrderedMutationAdmissionClaims (one per key, each with
+            // its own Reasons set), so identity and record equality give the same answers.
+            HashSet<OrderedMutationAdmissionClaim> appliedAdmissionClaims =
+                new(ReferenceEqualityComparer.Instance);
             foreach (OrderedMutationAdmissionClaim selectedClaim in admissionClaims
                          .Where(claim => HasPaidOrderedMutationAdmission(claim.Candidate)))
             {
