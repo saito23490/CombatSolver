@@ -164,8 +164,22 @@ internal static class CardDrawCardMirrors
         if (context.Simulator.HasPendingChoice)
             return;
 
-        while (true)
+        // The game loops "draw while the drawn card is an Attack and the hand is not full"
+        // (Pillage.OnPlay). Drawn cards that stay in hand end it within the hand limit; drawn cards
+        // that leave the hand can pass through the draw and discard piles at most once before a
+        // reshuffle would have to feed the same cards back. Past that bound the prediction is
+        // cycling (a production search spent >6 GB here), so stop and mark the line as a known
+        // prediction risk instead of looping until the process is killed.
+        int drawLimit = context.OwnerState.DrawPile.Cards.Count
+            + context.OwnerState.DiscardPile.Cards.Count
+            + context.Simulator.GetMaxHandSize(card.Owner);
+        for (int draws = 0; ; draws++)
         {
+            if (draws >= drawLimit)
+            {
+                context.History.RecordRisk(PredictionRiskReason.CardDrawLimitExceeded);
+                break;
+            }
             var drawnCards = context.Simulator.Draw(card.Owner, 1);
             if (context.Simulator.HasPendingChoice)
                 return;
