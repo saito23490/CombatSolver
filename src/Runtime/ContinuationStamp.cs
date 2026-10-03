@@ -19,6 +19,35 @@ namespace CombatSolver;
 /// </summary>
 internal sealed record ContinuationStamp(string StateText)
 {
+    /// <summary>
+    /// True when the two stamps are equal except for power entries owned by <paramref name="ownerCombatId"/>
+    /// (the <c>P=</c> field lists powers as <c>ownerId:POWER=amount/...[vars],</c>).
+    /// </summary>
+    public bool DiffersOnlyInPowersOf(ContinuationStamp actual, uint? ownerCombatId)
+    {
+        string[] expectedFields = StateText.Split(';');
+        string[] actualFields = actual.StateText.Split(';');
+        if (expectedFields.Length != actualFields.Length)
+            return false;
+        string ownerPrefix = $"{ownerCombatId}:";
+        for (int index = 0; index < expectedFields.Length; index++)
+        {
+            if (string.Equals(expectedFields[index], actualFields[index], StringComparison.Ordinal))
+                continue;
+            (string expectedName, string expectedValue) = SplitField(expectedFields[index]);
+            (string actualName, string actualValue) = SplitField(actualFields[index]);
+            if (expectedName != "P" || actualName != "P")
+                return false;
+            static IEnumerable<string> Entries(string value)
+                => System.Text.RegularExpressions.Regex.Split(value, @"(?<=\]),")
+                    .Where(entry => entry.Length > 0);
+            if (!Entries(expectedValue).Where(entry => !entry.StartsWith(ownerPrefix, StringComparison.Ordinal))
+                    .SequenceEqual(Entries(actualValue).Where(entry => !entry.StartsWith(ownerPrefix, StringComparison.Ordinal))))
+                return false;
+        }
+        return true;
+    }
+
     public string DescribeFirstDifference(ContinuationStamp actual)
         => DescribeDifferences(actual, maximumDifferences: 1).FirstOrDefault() ?? "none";
 

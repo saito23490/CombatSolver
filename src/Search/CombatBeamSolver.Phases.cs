@@ -567,14 +567,32 @@ internal sealed partial class CombatBeamSolver
                     _forecast,
                     _startTurnNumber);
                 string difference = expectedStamp.DescribeFirstDifference(replayStamp);
-                replayEvidence.Publish(policy.Diagnostics, "final_state_mismatch", relicTriggerRecorder,
-                    expectedStamp.StateText, replayStamp.StateText);
-                annotationReplay.ReleaseSimulator();
-                throw new InvalidOperationException(
-                    $"最终路线的遗物标注回放与选中状态不一致：{difference}；" +
-                    $"hp={finalSnapshot.PlayerHp}/{annotationReplay.PlayerHp} " +
-                    $"enemy_hp={finalSnapshot.EnemyHp}/{annotationReplay.EnemyHp} " +
-                    $"boundary={finalSnapshot.BoundaryReason}/{annotationReplay.BoundaryReason}。");
+                // A route that ends with the player dead can leave a different residue of powers on the
+                // dead player depending on the replay path (e.g. Unrelenting's FreeAttackPower survived
+                // the death on the incremental path but not on the full replay). Nothing after the
+                // player's death is executed, so when that residue is the only difference the route and
+                // its annotations are still valid.
+                bool deadPlayerResidueOnly = finalSnapshot.PlayerDead && annotationReplay.PlayerDead
+                    && annotationReplay.PlayerHp == finalSnapshot.PlayerHp
+                    && annotationReplay.EnemyHp == finalSnapshot.EnemyHp
+                    && annotationReplay.BoundaryReason == finalSnapshot.BoundaryReason
+                    && expectedStamp.DiffersOnlyInPowersOf(replayStamp, _player.Creature.CombatId);
+                if (deadPlayerResidueOnly)
+                {
+                    policy.Diagnostics.Info(
+                        $"[CombatSolver/Test] FINAL_ROUTE_DEAD_PLAYER_POWER_RESIDUE {difference}");
+                }
+                else
+                {
+                    replayEvidence.Publish(policy.Diagnostics, "final_state_mismatch", relicTriggerRecorder,
+                        expectedStamp.StateText, replayStamp.StateText);
+                    annotationReplay.ReleaseSimulator();
+                    throw new InvalidOperationException(
+                        $"最终路线的遗物标注回放与选中状态不一致：{difference}；" +
+                        $"hp={finalSnapshot.PlayerHp}/{annotationReplay.PlayerHp} " +
+                        $"enemy_hp={finalSnapshot.EnemyHp}/{annotationReplay.EnemyHp} " +
+                        $"boundary={finalSnapshot.BoundaryReason}/{annotationReplay.BoundaryReason}。");
+                }
             }
             RouteAnnotations replayAnnotations = BuildRouteAnnotations(best, relicTriggerRecorder);
             replayEvidence.Publish(policy.Diagnostics, "selected_route", relicTriggerRecorder);
