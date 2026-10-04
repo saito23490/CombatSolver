@@ -83,7 +83,22 @@ internal sealed partial class CombatBeamSolver
                         CardStateKey: cardStateKey,
                         CardStateOccurrence: cardStateOccurrence,
                         CardEnchantmentId: card.Preview.Enchantment?.Id.Entry ?? "", CardUpgradeLevel: card.Preview.CurrentUpgradeLevel);
-                    SimulationSnapshot probe = ReplayAction(seed, action);
+                    SimulationSnapshot probe;
+                    try
+                    {
+                        probe = ReplayAction(seed, action);
+                    }
+                    catch (Exception error) when (error is SearchTransitionException
+                        or InvalidPlannedChoiceBranchException)
+                    {
+                        // Enumerating follow-up powers for the optional opening power-route portfolio:
+                        // when the prefix ended the combat or the replay diverged (e.g. a PYRE prefix),
+                        // this candidate is simply not offered instead of failing the whole search.
+                        policy.Diagnostics.Info(
+                            $"[CombatSolver/Test] POWER_ROUTE_FOLLOWUP_SKIPPED card={action.CardId} " +
+                            $"prefix={prefix.Count} reason={error.GetType().Name}: {(error.InnerException ?? error).Message}");
+                        continue;
+                    }
                     try
                     {
                         if (probe.BoundaryReason == SearchBoundaryReason.None
